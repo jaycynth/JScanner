@@ -3,6 +3,7 @@ package com.techne.jscanner.presentation.apkScanner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.techne.jscanner.data.model.ApkInfo
+import com.techne.jscanner.data.repository.AppType
 import com.techne.jscanner.domain.ApkInfoRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -14,12 +15,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ApkScannerViewModel @Inject constructor(private val repository: ApkInfoRepository) : ViewModel() {
-    private val _state = MutableStateFlow<ApkScannerState>(ApkScannerState.Loading)
+    private val _state = MutableStateFlow<ApkScannerState>(ApkScannerState.Idle)
     val state: StateFlow<ApkScannerState> = _state.asStateFlow()
 
-    init {
-       scanForApks()
-    }
+
 
     fun handleIntent(intent: ApkScannerIntent) {
         when (intent) {
@@ -28,12 +27,12 @@ class ApkScannerViewModel @Inject constructor(private val repository: ApkInfoRep
         }
     }
 
-    private fun scanForApks() {
+    fun scanForApks(filter: AppType = AppType.ALL) {
         viewModelScope.launch {
             _state.value = ApkScannerState.Loading
 
             try {
-                val installedApps = repository.getInstalledApps()
+                val installedApps = repository.getInstalledApps(filter)
                 val totalApps = installedApps.size
                 var currentAppIndex = 0
 
@@ -41,15 +40,13 @@ class ApkScannerViewModel @Inject constructor(private val repository: ApkInfoRep
                     val progress = ((currentAppIndex + 1) * 100) / totalApps
                     _state.value = ApkScannerState.Scanning(progress, app.appName)
                     currentAppIndex++
-                    delay(50)
-
+                    delay(50) // Simulate scanning delay
                 }
 
-                // After the scan is done, load the apps
                 _state.value = ApkScannerState.Loaded(installedApps)
 
             } catch (e: Exception) {
-                _state.value = ApkScannerState.Error("Failed to load apps")
+                _state.value = ApkScannerState.Error("Failed to load apps: ${e.message}")
             }
         }
     }
